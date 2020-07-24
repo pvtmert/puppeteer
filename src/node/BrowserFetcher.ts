@@ -562,7 +562,7 @@ function httpRequest(
 
   type Options = Partial<URL.UrlWithStringQuery> & {
     method?: string;
-    agent?: any | http.Agent | HttpsProxyAgent | SocksProxyAgent;
+    agent?: HttpsProxyAgent | SocksProxyAgent | any;
     rejectUnauthorized?: boolean;
   };
 
@@ -575,13 +575,20 @@ function httpRequest(
   if (proxyURL) {
     const parsedProxyURL = URL.parse(proxyURL);
     switch (true) {
-      case url.startsWith('http:'): {
+      case proxyURL.startsWith("socks:") || proxyURL.startsWith("socks5:") || proxyURL.startsWith("socks5h:"): {
+        const proxyOptions = {
+          ...parsedProxyURL,
+        } as SocksProxyAgentOptions
+
+        options.agent = new SocksProxyAgent(proxyOptions);
+      } break;
+      case url.startsWith('http:'):
         options = {
           path: options.href,
           host: parsedProxyURL.hostname,
           port: parsedProxyURL.port,
         };
-      } break;
+        break;
       case url.startsWith("https:"): {
         const proxyOptions = {
           ...parsedProxyURL,
@@ -589,14 +596,6 @@ function httpRequest(
         } as HttpsProxyAgent.HttpsProxyAgentOptions;
 
         options.agent = new HttpsProxyAgent(proxyOptions);
-        options.rejectUnauthorized = false;
-      } break;
-      case url.startsWith("socks:") || url.startsWith("socks5:") || url.startsWith("socks5h:"): {
-        const proxyOptions = {
-          ...parsedProxyURL,
-        } as SocksProxyAgentOptions;
-
-        options.agent = new SocksProxyAgent(proxyOptions);
         options.rejectUnauthorized = false;
       } break;
     }
