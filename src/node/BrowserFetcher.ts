@@ -27,7 +27,8 @@ import { debug } from '../common/Debug.js';
 import { promisify } from 'util';
 import removeRecursive from 'rimraf';
 import * as URL from 'url';
-import ProxyAgent from 'https-proxy-agent';
+import HttpsProxyAgent from 'https-proxy-agent';
+import { SocksProxyAgent, SocksProxyAgentOptions } from 'socks-proxy-agent';
 import { getProxyForUrl } from 'proxy-from-env';
 import { assert } from '../common/assert.js';
 
@@ -561,7 +562,7 @@ function httpRequest(
 
   type Options = Partial<URL.UrlWithStringQuery> & {
     method?: string;
-    agent?: ProxyAgent;
+    agent?: any | http.Agent | HttpsProxyAgent | SocksProxyAgent;
     rejectUnauthorized?: boolean;
   };
 
@@ -572,23 +573,32 @@ function httpRequest(
 
   const proxyURL = getProxyForUrl(url);
   if (proxyURL) {
-    if (url.startsWith('http:')) {
-      const proxy = URL.parse(proxyURL);
-      options = {
-        path: options.href,
-        host: proxy.hostname,
-        port: proxy.port,
-      };
-    } else {
-      const parsedProxyURL = URL.parse(proxyURL);
+    const parsedProxyURL = URL.parse(proxyURL);
+    switch (true) {
+      case url.startsWith('http:'): {
+        options = {
+          path: options.href,
+          host: parsedProxyURL.hostname,
+          port: parsedProxyURL.port,
+        };
+      } break;
+      case url.startsWith("https:"): {
+        const proxyOptions = {
+          ...parsedProxyURL,
+          secureProxy: parsedProxyURL.protocol === 'https:',
+        } as HttpsProxyAgent.HttpsProxyAgentOptions;
 
-      const proxyOptions = {
-        ...parsedProxyURL,
-        secureProxy: parsedProxyURL.protocol === 'https:',
-      } as ProxyAgent.HttpsProxyAgentOptions;
+        options.agent = new HttpsProxyAgent(proxyOptions);
+        options.rejectUnauthorized = false;
+      } break;
+      case url.startsWith("socks:") || url.startsWith("socks5:"): {
+        const proxyOptions = {
+          ...parsedProxyURL,
+        } as SocksProxyAgentOptions;
 
-      options.agent = new ProxyAgent(proxyOptions);
-      options.rejectUnauthorized = false;
+        options.agent = new SocksProxyAgent(proxyOptions);
+        options.rejectUnauthorized = false;
+      } break;
     }
   }
 
