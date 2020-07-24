@@ -591,7 +591,7 @@ function httpRequest(
         options.agent = new HttpsProxyAgent(proxyOptions);
         options.rejectUnauthorized = false;
       } break;
-      case url.startsWith("socks:") || url.startsWith("socks5:"): {
+      case url.startsWith("socks:") || url.startsWith("socks5:") || url.startsWith("socks5h:"): {
         const proxyOptions = {
           ...parsedProxyURL,
         } as SocksProxyAgentOptions;
